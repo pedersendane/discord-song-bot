@@ -10,7 +10,7 @@ import utilities
 
 load_dotenv()
 # Save your discord token in a .env file and link it here.
-token = os.getenv('discordToken')
+token = os.environ['discordToken']
 
 # Set the bot intents accordingly to be able to read info about guild members etc.
 intents = discord.Intents.default()
