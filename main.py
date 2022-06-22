@@ -339,6 +339,7 @@ async def show_help(ctx):
   session = check_session(ctx)
   await ctx.send("---------------Available Commands----------------\n" + 
                 "$play song name or $p song name\n" + 
+                 "$add song name - Add song to the queue\n" + 
                  "$pause\n" + 
                  "$resume\n" + 
                  "$next or $skip\n" + 
