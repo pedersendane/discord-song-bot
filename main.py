@@ -10,6 +10,7 @@ import time
 from discord.ext import commands
 from dotenv import load_dotenv
 from replit import db
+from keep_alive import keep_alive
 
 load_dotenv()
 client = discord.Client()
@@ -296,7 +297,6 @@ async def add_song_to_playlist(ctx, *, arg):
 #Show all playlist items
 @qBot.command(name='playlist')
 async def show_playlist_items(ctx):
-  session = check_session(ctx)
   playlist_items = db.prefix("playlist_item:")
   playlist_string = '**Current Playlist:**'
   index = 0
@@ -439,7 +439,11 @@ async def show_help(ctx):
                  "**$dpl 2** - Delete playlist item number 2\n" +
                  "**$shuffle** - Shuffle and play the playlist\n"
                 )
+
+
+
 # Runs bot's loop.
 qBot.run(token)
 
-
+#Run Web Server
+keep_alive()
