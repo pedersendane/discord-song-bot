@@ -186,23 +186,17 @@ async def skip(ctx):
     :param ctx: discord.ext.commands.Context
     :return: None
     """
-    # Finds author's session.
     session = check_session(ctx)
-    # If there isn't any song to be played next, return.
     if not session.q.theres_next():
         await ctx.send("No song up next")
         return
 
-    # Finds an available voice client for the bot.
     voice = discord.utils.get(qBot.voice_clients, guild=session.guild)
 
-    # If it is playing something, stops it. This works because of the "after" argument when calling voice.play as it is
-    # a recursive loop and the current song is already going to play the next song when it stops.
     if voice.is_playing():
         voice.stop()
         return
     else:
-        # If nothing is playing, finds the next song and starts playing it.
         session.q.next()
         source = await discord.FFmpegOpusAudio.from_probe(session.q.current_music.url, **FFMPEG_OPTIONS)
         voice.play(source, after=lambda e: prepare_continue_queue(ctx))
@@ -253,7 +247,7 @@ async def print_info(ctx):
       await ctx.send(f"Now Playing: {session.q.current_music.title}")
       
     queue = [q[0] for q in session.q.queue]
-    if(queue.len() == 0):
+    if(len(queue) == 0):
       await ctx.send(f"Queue: {queue}")
 
 
@@ -268,7 +262,7 @@ async def add_song_to_playlist(ctx, *, arg):
           print(e)
           info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
               'entries'][0]
-          await ctx.send(f"Searching YouTube for '{arg}'")
+          #await ctx.send(f"Searching YouTube for '{arg}'")
       else:
           info = ydl.extract_info(arg, download=False)
         
@@ -281,9 +275,7 @@ async def add_song_to_playlist(ctx, *, arg):
   
   if db_song_key not in db_keys:
     db[f"playlist_item: {title}"] = json.dumps(json_song)
-    await ctx.send(thumb)
-    await ctx.send(f"Added '{title}' to the playlist")
-    await ctx.send(f"Playlist now contains {db_keys.len()} songs")
+    await ctx.send(f"{thumb}\nAdded '{title}' to the playlist\nPlaylist now contains {len(db_keys)} songs")
   else:
     await ctx.send(f"{title} is already in the playlist")
   print(db[f"playlist_item: {title}"])
@@ -292,11 +284,10 @@ async def add_song_to_playlist(ctx, *, arg):
 async def show_playlist_info(ctx):
   session = check_session(ctx)
   playlist_items = db.prefix("playlist_item:")
-  await ctx.send(f"There are currently {playlist_items.len()} songs in the playlist")
-  if(playlist_items.len() > 0):
-    await ctx.send(f"Type '$shuffle' to shuffle through them or '$showPlaylist' to see all of the songs")
+  if(len(playlist_items) > 0):
+    await ctx.send(f"There are currently {len(playlist_items)} songs in the playlist.\nType '$shuffle' to shuffle through them or '$showPlaylist' to see all of the songs")
   else:
-    await ctx.send(f"Type '$atp song name' to add some songs to the playlist")
+    await ctx.send(f"There are currently {len(playlist_items)} songs in the playlist.\nType '$atp song name' to add some songs to the playlist")
     
 
 @qBot.command(name='shuffle')
@@ -310,7 +301,26 @@ async def shuffle_playlist(ctx):
     song_url = song["url"]
     song_thumb = song["thumb"]
     await ctx.invoke(qBot.get_command('add'), query=f"{song_title}")
+
+
+@qBot.command(name='sos')
+async def show_help(ctx):
+  session = check_session(ctx)
+  await ctx.send("---------------Available Commands----------------\n" + 
+                "$play song name\n" + 
+                 "$pause\n" + 
+                 "$resume\n" + 
+                 "$next or $skip\n" + 
+                 "$stop - Clears the queue and stops the music\n" +
+                 "$gtfo - Kicks bot out of chat\n" +
+                 "$print - Show song and queue info\n" +
+                 "$atp song name - Add song name to playlist\n" +
+                 "$playlistInfo - Show playlist details\n" +
+                 "$shuffle - Shuffle and play the playlist\n" +
+                 "$sos - show this message\n" 
+                )
   
 # Runs bot's loop.
 qBot.run(token)
+
 
