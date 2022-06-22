@@ -6,6 +6,7 @@ import youtube_dl
 import utilities
 import json
 import random
+import time
 from discord.ext import commands
 from dotenv import load_dotenv
 from replit import db
@@ -88,7 +89,7 @@ async def continue_queue(ctx):
 
 
 
-@qBot.command(name='play', aliases=['add'])
+@qBot.command(name='play', aliases=['add', 'p'])
 async def play(ctx, *, arg):
     """
     Checks where the command's author is, searches for the music required, joins the same channel as the command's
@@ -233,7 +234,7 @@ async def leave(ctx):
     else:
         await ctx.send("Bot not connected, so it can't leave.")
       
-@qBot.command(name='print')
+@qBot.command(name='q')
 async def print_info(ctx):
     """
     A debug command to find session id, what is current playing and what is on the queue.
@@ -293,21 +294,51 @@ async def show_playlist_info(ctx):
 @qBot.command(name='shuffle')
 async def shuffle_playlist(ctx):
   session = check_session(ctx)
+  try:
+    voice_channel = ctx.author.voice.channel
+
+  # If command's author isn't connected, return.
+  except AttributeError as e:
+    print(e)
+    await ctx.send("You're not in a voice channel you fucking idiot")
+    return
+
   playlist_items = db.prefix("playlist_item:")
-  shuffled_items = random.shuffle(playlist_items)
+  shuffled_items = random.sample(playlist_items, k=len(playlist_items))
   for i in shuffled_items:
     song = json.loads(db[f"{i}"])
-    song_title = song["title"]
-    song_url = song["url"]
-    song_thumb = song["thumb"]
-    await ctx.invoke(qBot.get_command('add'), query=f"{song_title}")
+    title = song["title"]
+    url = song["url"]
+    thumb = song["thumb"]  
+    session.q.enqueue(title, url, thumb)
+
+  # Finds an available voice client for the bot.
+  voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+  if not voice:
+    await voice_channel.connect()
+    voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+
+  # If it is already playing something, adds to the queue
+  if voice.is_playing():
+    await ctx.send(thumb)
+    await ctx.send(f"Added {title} to the queue")
+    return
+  else:
+    await ctx.send(thumb)
+    await ctx.send(f"Now Playing - {title}")
+
+    # Guarantees that the requested music is the current music.
+    session.q.set_last_as_current()
+    source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
+    voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+  
 
 
 @qBot.command(name='sos')
 async def show_help(ctx):
   session = check_session(ctx)
   await ctx.send("---------------Available Commands----------------\n" + 
-                "$play song name\n" + 
+                "$play song name or $p song name\n" + 
                  "$pause\n" + 
                  "$resume\n" + 
                  "$next or $skip\n" + 
