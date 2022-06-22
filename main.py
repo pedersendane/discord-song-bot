@@ -120,7 +120,7 @@ async def play(ctx, *, arg):
             print(e)
             info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
                 'entries'][0]
-            await ctx.send(f"No url given. Searching YouTube for '{arg}'")
+            await ctx.send(f"Searching YouTube for '{arg}'")
         else:
             info = ydl.extract_info(arg, download=False)
 
