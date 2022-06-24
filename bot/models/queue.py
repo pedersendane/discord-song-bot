@@ -141,7 +141,6 @@ class Queue:
         self.queue.clear()
         self.current_music = self.music('', '', '')
 
-
 class Session:
     """
     A class used to represent an instance of the bot.
