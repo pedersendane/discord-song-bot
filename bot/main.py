@@ -3,14 +3,14 @@ import os
 import discord
 import requests
 import youtube_dl
-import utilities
 import json
 import random
 import time
 from discord.ext import commands
 from dotenv import load_dotenv
-from replit import db
-from keep_alive import keep_alive
+#from replit import db
+import bot.utilities as utilities
+from bot.keep_alive import keep_alive
 
 load_dotenv()
 client = discord.Client()
@@ -285,135 +285,135 @@ async def add_song_to_playlist(ctx, *, arg):
   title = info['title']
   json_song = {"url": f"{url}", "thumb" : f"{thumb}","title" : f"{title}"}
   db_song_key = f"playlist_item: {title}"
-  db_keys = db.keys()
+  #db_keys = db.keys()
   
-  if db_song_key not in db_keys:
-    db[f"playlist_item: {title}"] = json.dumps(json_song)
-    await ctx.send(thumb)
-    await ctx.send(f"**Added to playlist:**\n>>> {title}")
-  else:
-    await ctx.send(f"**{title}** is already in the playlist")
+  # if db_song_key not in db_keys:
+  #   db[f"playlist_item: {title}"] = json.dumps(json_song)
+  #   await ctx.send(thumb)
+  #   await ctx.send(f"**Added to playlist:**\n>>> {title}")
+  # else:
+  #   await ctx.send(f"**{title}** is already in the playlist")
 
-#Show all playlist items
-@qBot.command(name='playlist')
-async def show_playlist_items(ctx):
-  playlist_items = db.prefix("playlist_item:")
-  playlist_string = '**Current Playlist:**'
-  index = 0
-  for i in playlist_items:
-    song = json.loads(db[f"{i}"])
-    title = song["title"]
-    url = song["url"]
-    thumb = song["thumb"]  
-    playlist_string += f"\n> {index + 1}. {title}"
-    index += 1
-  await ctx.send(playlist_string)
-  await ctx.send(f'**$pl 1** - Play song 1\n**$dpl 1** - Delete song 1')
+# #Show all playlist items
+# @qBot.command(name='playlist')
+# async def show_playlist_items(ctx):
+#   playlist_items = db.prefix("playlist_item:")
+#   playlist_string = '**Current Playlist:**'
+#   index = 0
+#   for i in playlist_items:
+#     song = json.loads(db[f"{i}"])
+#     title = song["title"]
+#     url = song["url"]
+#     thumb = song["thumb"]  
+#     playlist_string += f"\n> {index + 1}. {title}"
+#     index += 1
+#   await ctx.send(playlist_string)
+#   await ctx.send(f'**$pl 1** - Play song 1\n**$dpl 1** - Delete song 1')
 
-#Play a specific playlist song
-@qBot.command(name='pl')
-async def play_playlist_item(ctx, *, arg):
-  session = check_session(ctx)
-  try:
-    voice_channel = ctx.author.voice.channel
-  except AttributeError as e:
-    print(e)
-    await ctx.send("You're not in a voice channel you fucking idiot")
-    return
+# #Play a specific playlist song
+# @qBot.command(name='pl')
+# async def play_playlist_item(ctx, *, arg):
+#   session = check_session(ctx)
+#   try:
+#     voice_channel = ctx.author.voice.channel
+#   except AttributeError as e:
+#     print(e)
+#     await ctx.send("You're not in a voice channel you fucking idiot")
+#     return
 
-  try:
-    index = int(arg) - 1
-  except ValueError as e:
-    print(e)
-    await ctx.send("Are you fucking retarded?")
-    return
+#   try:
+#     index = int(arg) - 1
+#   except ValueError as e:
+#     print(e)
+#     await ctx.send("Are you fucking retarded?")
+#     return
     
-  playlist_items = db.prefix("playlist_item:")
-  if(index >= 0 and index <= len(playlist_items)):
-    selected_song = playlist_items[index]
-    song = json.loads(db[selected_song])
-    title = song["title"]
-    url = song["url"]
-    thumb = song["thumb"]  
-    voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-    if not voice:
-      await voice_channel.connect()
-      voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+#   playlist_items = db.prefix("playlist_item:")
+#   if(index >= 0 and index <= len(playlist_items)):
+#     selected_song = playlist_items[index]
+#     song = json.loads(db[selected_song])
+#     title = song["title"]
+#     url = song["url"]
+#     thumb = song["thumb"]  
+#     voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+#     if not voice:
+#       await voice_channel.connect()
+#       voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
   
-    if voice.is_playing():
-      await ctx.send(thumb)
-      await ctx.send(f"**Added to queue:**\n>>> {title}")
-      return
-    else:
-      await ctx.send(thumb)
-      await ctx.send(f"**Now Playing:**\n>>> {title}")
-      session.q.set_last_as_current()
-      source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
-      voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
-  else:
-    await ctx.send("Are you fucking retarded?")
+#     if voice.is_playing():
+#       await ctx.send(thumb)
+#       await ctx.send(f"**Added to queue:**\n>>> {title}")
+#       return
+#     else:
+#       await ctx.send(thumb)
+#       await ctx.send(f"**Now Playing:**\n>>> {title}")
+#       session.q.set_last_as_current()
+#       source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
+#       voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+#   else:
+#     await ctx.send("Are you fucking retarded?")
   
 
-#Delete a specific playlist song
-@qBot.command(name='dpl')
-async def delete_playlist_item(ctx, *, arg):
-  try:
-    index = int(arg) - 1
-  except AttributeError as e:
-    print(e)
-    await ctx.send("Are you fucking retarded?")
-    return
+# #Delete a specific playlist song
+# @qBot.command(name='dpl')
+# async def delete_playlist_item(ctx, *, arg):
+#   try:
+#     index = int(arg) - 1
+#   except AttributeError as e:
+#     print(e)
+#     await ctx.send("Are you fucking retarded?")
+#     return
     
-  playlist_items = db.prefix("playlist_item:")
-  if(index >= 0 and index <= len(playlist_items)):
-    selected_song = playlist_items[index]
-    song = json.loads(db[selected_song])
-    title = song["title"]
-    confirm_string = f"**{title}** has been removed from the playlist"
-    del db[selected_song]
-    await ctx.send(confirm_string)
+#   playlist_items = db.prefix("playlist_item:")
+#   if(index >= 0 and index <= len(playlist_items)):
+#     selected_song = playlist_items[index]
+#     song = json.loads(db[selected_song])
+#     title = song["title"]
+#     confirm_string = f"**{title}** has been removed from the playlist"
+#     del db[selected_song]
+#     await ctx.send(confirm_string)
     
   
   
 
 
-#Shuffle Playlist
-@qBot.command(name='shuffle')
-async def shuffle_playlist(ctx):
-  session = check_session(ctx)
-  try:
-    voice_channel = ctx.author.voice.channel
+# #Shuffle Playlist
+# @qBot.command(name='shuffle')
+# async def shuffle_playlist(ctx):
+#   session = check_session(ctx)
+#   try:
+#     voice_channel = ctx.author.voice.channel
 
-  except AttributeError as e:
-    print(e)
-    await ctx.send("You're not in a voice channel you fucking idiot")
-    return
+#   except AttributeError as e:
+#     print(e)
+#     await ctx.send("You're not in a voice channel you fucking idiot")
+#     return
   
 
-  playlist_items = db.prefix("playlist_item:")
-  shuffled_items = random.sample(playlist_items, k=len(playlist_items))
-  for i in shuffled_items:
-    song = json.loads(db[f"{i}"])
-    title = song["title"]
-    url = song["url"]
-    thumb = song["thumb"]  
-    session.q.enqueue(title, url, thumb)
+#   playlist_items = db.prefix("playlist_item:")
+#   shuffled_items = random.sample(playlist_items, k=len(playlist_items))
+#   for i in shuffled_items:
+#     song = json.loads(db[f"{i}"])
+#     title = song["title"]
+#     url = song["url"]
+#     thumb = song["thumb"]  
+#     session.q.enqueue(title, url, thumb)
 
-  voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-  if not voice:
-    await voice_channel.connect()
-    voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+#   voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+#   if not voice:
+#     await voice_channel.connect()
+#     voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
 
-  if voice.is_playing():
-    await ctx.send(thumb)
-    await ctx.send(f"Added {title} to the queue")
-    return
-  else:
-    await ctx.send(thumb)
-    await ctx.send(f"Now Playing - {title}")
-    session.q.set_last_as_current()
-    source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
-    voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+#   if voice.is_playing():
+#     await ctx.send(thumb)
+#     await ctx.send(f"Added {title} to the queue")
+#     return
+#   else:
+#     await ctx.send(thumb)
+#     await ctx.send(f"Now Playing - {title}")
+#     session.q.set_last_as_current()
+#     source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
+#     voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
   
 
 
