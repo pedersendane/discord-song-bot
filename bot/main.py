@@ -1,6 +1,8 @@
 import asyncio
+from ctypes.wintypes import tagRECT
 import datetime
 import os
+import string
 import discord
 import requests
 import youtube_dl
@@ -14,7 +16,7 @@ from dotenv import load_dotenv
 from keep_alive import keep_alive
 from models.queue import Queue,Session
 from models.playlist import PlaylistItem, Playlist
-import playlist_service
+import playlist_service, insult_service
 
 load_dotenv()
 token = os.environ['DISCORD_TOKEN']
@@ -369,9 +371,6 @@ async def delete_playlist_item(ctx, *, arg):
         await ctx.send(confirm_string)
     
   
-  
-
-
 # #Shuffle Playlist
 @qBot.command(name='shuffle')
 async def shuffle_playlist(ctx):
@@ -408,6 +407,21 @@ async def shuffle_playlist(ctx):
     source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
     voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
   
+
+@qBot.command(name='fuck')
+async def insult_by_name(ctx, *, arg):
+    #We want the command to be "fuck you", so ignore the first word of "you"
+    strings = str(arg).split()
+    if(len(strings) > 1):
+        target = strings[1]
+        insult = insult_service.get_insult_for_name(target, 2)
+        if(str(target).startswith('<') and str(target)[1] == '@'):
+            await ctx.send(f"**Yeah {target}{insult}**")
+        else:
+            await ctx.send(f"**Yeah {insult}**")
+    elif(len(strings) == 1 and strings[0].upper() == 'YOU'):
+        await ctx.send("No, fuck you")
+
 
 
 
