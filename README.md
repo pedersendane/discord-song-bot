@@ -20,7 +20,7 @@
 ### q - Show currently playing and next items in queue
 > `$q`
 
-### atp - Add a song to the database so we can add to a playlist later
+### atp - Add a song to playlist (Stored in db so it persists through sessions)
 > `$atp song name here`
 
 ### playlist - Get information about the playlist
