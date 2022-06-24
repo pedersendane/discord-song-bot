@@ -35,5 +35,3 @@
 ### shuffle - Shuffle through the songs in the playlist
 > `$shuffle`
 
-
-git push heroku-jockie-bot main
