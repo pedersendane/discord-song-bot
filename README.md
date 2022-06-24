@@ -1,3 +1,9 @@
+# Tech Stack
+1. Python 
+2. Discord API
+3. MongoDb Data API
+4. Heroku (ffmpeg build pack)
+
 # Commands
 ### play - Only works with Youtube for now 
 > `$p song name here`
@@ -34,4 +40,6 @@
 
 ### shuffle - Shuffle through the songs in the playlist
 > `$shuffle`
+
+
 
