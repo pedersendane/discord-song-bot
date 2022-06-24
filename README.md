@@ -1,6 +1,6 @@
 # Commands
 ### play - Only works with Youtube for now 
-> `$play song name here`
+> `$p song name here`
 
 ### pause 
 > `$pause`
@@ -8,7 +8,7 @@
 ### resume 
 > `$resume`
 
-### next/skip**
+### next/skip
 > `$next *or* $skip`
 
 ### stop - Stops playing audio and clears the queue
@@ -17,14 +17,20 @@
 ### gtfo- Kicks Jockie from voice chat
 > `$gtfo`
 
-### print - Show the session ID, what is currently playing and what is in the queue
-> `$print`
+### q - Show currently playing and next items in queue
+> `$q`
 
 ### atp - Add a song to the database so we can add to a playlist later
 > `$atp song name here`
 
-### playlistInfo - Get information about the playlist
-> `$playlistInfo`
+### playlist - Get information about the playlist
+> `$playlist`
+
+### pl - Play song song number from playlist - (run $playlist to see song numbers)
+> `$pl 1`
+
+### dpl - Delete specific song from playlist - (run $playlist to see song numbers)
+> `$dpl 5`
 
 ### shuffle - Shuffle through the songs in the playlist
 > `$shuffle`
