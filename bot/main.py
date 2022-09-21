@@ -127,7 +127,7 @@ async def play(ctx, *, arg):
             print(e)
             info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
                 'entries'][0]
-            #await ctx.send(f"Searching YouTube for **{arg}**")
+            await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
         else:
             info = ydl.extract_info(arg, download=False)
 
@@ -288,7 +288,8 @@ async def add_song_to_playlist(ctx, *, arg):
 
     playlist = playlist_service.get_playlist_by_name(shared_playlist_name)
     if playlist is not None:
-        song = PlaylistItem(playlist.id, info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
+        # song = PlaylistItem(playlist.id, info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
+        song = PlaylistItem(playlist.id, info['title'], info['title'], info['thumbnails'][0]['url'])
         message = playlist_service.create_song(song)
         await ctx.send(message)
 
@@ -316,7 +317,6 @@ async def play_playlist_item(ctx, *, arg):
         print(e)
         await ctx.send("You're not in a voice channel you fucking idiot")
         return
-
     try:
         index = int(arg) - 1
     except ValueError as e:
@@ -328,23 +328,38 @@ async def play_playlist_item(ctx, *, arg):
     if(len(playlist_items) > 0):
         if(index >= 0 and index <= len(playlist_items)):
             song = playlist_items[index]
-            title = song.title
-            url = song.url
-            thumb = song.thumb
+            with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+                try:
+                    requests.get(song.title)
+                except Exception as e:
+                    print(e)
+                    info = ydl.extract_info(f"ytsearch:{song.title}", download=False)[
+                        'entries'][0]
+                    await ctx.send(f"There was an error playing **{song.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+                else:
+                    info = ydl.extract_info(song.title, download=False)
+
+            url = info['formats'][0]['url']
+            thumb = info['thumbnails'][0]['url']
+            title = info['title']
+
+            session.q.enqueue(title, url, thumb)
+
             voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
             if not voice:
                 await voice_channel.connect()
                 voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-        
+
             if voice.is_playing():
                 await ctx.send(thumb)
                 await ctx.send(f"**Added to queue:**\n>>> {title}")
                 return
+
             else:
                 await ctx.send(thumb)
                 await ctx.send(f"**Now Playing:**\n>>> {title}")
                 session.q.set_last_as_current()
-                source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
+                source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
                 voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
         else:
             await ctx.send("Are you fucking retarded?")
@@ -386,9 +401,20 @@ async def shuffle_playlist(ctx):
   playlist_items = playlist_service.get_all_songs()
   shuffled_items = random.sample(playlist_items, k=len(playlist_items))
   for i in shuffled_items:
-    title = i.title
-    url = i.url
-    thumb = i.thumb
+    with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+        try:
+            requests.get(i.title)
+        except Exception as e:
+            print(e)
+            info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
+                'entries'][0]
+            await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+        else:
+            info = ydl.extract_info(arg, download=False)
+
+    url = info['formats'][0]['url']
+    thumb = info['thumbnails'][0]['url']
+    title = info['title']
     session.q.enqueue(title, url, thumb)
 
   voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
