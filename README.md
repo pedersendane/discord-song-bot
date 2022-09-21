@@ -5,7 +5,7 @@
 4. Heroku (ffmpeg build pack)
 
 # Invite to discord
-https://discord.com/api/oauth2/authorize?client_id=988764578185879573&permissions=2159044672&scope=bot
+https://discord.com/api/oauth2/authorize?client_id={{YOUR_CLIENT_ID}}&permissions=2159044672&scope=bot
 
 # Commands
 ### play - Only works with Youtube for now 
