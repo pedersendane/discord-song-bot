@@ -127,7 +127,7 @@ async def play(ctx, *, arg):
             print(e)
             info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
                 'entries'][0]
-            await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+            #await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
         else:
             info = ydl.extract_info(arg, download=False)
 
@@ -335,7 +335,7 @@ async def play_playlist_item(ctx, *, arg):
                     print(e)
                     info = ydl.extract_info(f"ytsearch:{song.title}", download=False)[
                         'entries'][0]
-                    await ctx.send(f"There was an error playing **{song.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+                    #await ctx.send(f"There was an error playing **{song.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
                 else:
                     info = ydl.extract_info(song.title, download=False)
 
@@ -408,7 +408,7 @@ async def shuffle_playlist(ctx):
             print(e)
             info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
                 'entries'][0]
-            await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+            #await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
         else:
             info = ydl.extract_info(arg, download=False)
 
