@@ -124,10 +124,11 @@ async def play(ctx, *, arg):
         try:
             requests.get(arg)
         except Exception as e:
-            print(e)
-            info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
-                'entries'][0]
-            #await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+            #if they didn't type an actual url
+            if e[0:10] == "Invalid URL":
+                info = ydl.extract_info(f"ytsearch:{arg}", download=False)['entries'][0]
+            else:
+                await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
         else:
             info = ydl.extract_info(arg, download=False)
 

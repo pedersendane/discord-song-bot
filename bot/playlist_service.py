@@ -11,12 +11,17 @@ from dotenv import load_dotenv
 load_dotenv()
 token = os.environ['DISCORD_TOKEN']
 base_api_url = os.environ['API_BASE_URL']
+database = os.environ['DISCORD_DATABASE']
+data_source = os.environ['DISCORD_DATA_SOURCE']
+
 song_api_key = os.environ['PLAYLIST_ITEM_API_KEY']
-playlist_api_key = os.environ['PLAYLIST_API_KEY']
 song_collection = os.environ['SONG_COLLECTION']
+
+playlist_api_key = os.environ['PLAYLIST_API_KEY']
 playlist_collection = os.environ['PLAYLIST_COLLECTION']
-database = os.environ['PLAYLIST_DATABASE']
-data_source = os.environ['PLAYLIST_DATA_SOURCE']
+
+queue_item_api_key = os.environ['QUEUE_ITEM_API_KEY']
+queue_item_collection = os.environ['QUEUE_ITEM_COLLECTION']
 
 # Get all playlists
 def get_all_playlists():
