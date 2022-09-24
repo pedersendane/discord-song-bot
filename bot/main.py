@@ -474,6 +474,11 @@ async def insult_by_name(ctx, *, arg):
     elif(len(strings) == 1 and strings[0].upper() == 'YOU'):
         await ctx.send("No, fuck you")
 
+@qBot.command(name='art')
+async def show_art(ctx):
+    art = insult_service.get_copy_pasta_art()
+    await ctx.send(art)
+
 
 
 
@@ -502,9 +507,7 @@ async def show_help(ctx):
                 
   await ctx.send("\n__Useless Bullshit__\n>>> " +
                  "**$fuck you @Name** - Insult someone\n" +
-                 "**$art** - Have Jockie paint you a picture\n" + 
-                 "**$art** - Have Jockie paint you a picture\n"
-
+                 "**$art** - Have Jockie paint you a picture\n" 
                 )
 
 
