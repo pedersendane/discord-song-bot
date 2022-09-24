@@ -14,9 +14,9 @@ from discord.ext import commands
 from discord import FFmpegOpusAudio
 from dotenv import load_dotenv
 from keep_alive import keep_alive
-from models.queue import Queue,Session
+from models.queue import *
 from models.playlist import PlaylistItem, Playlist
-import playlist_service, insult_service
+import playlist_service, insult_service, queue_service
 
 load_dotenv()
 token = os.environ['DISCORD_TOKEN']
@@ -27,6 +27,7 @@ qBot = commands.Bot(command_prefix=["$"])
 sessions = []
 FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 shared_playlist_name = 'Soup Shared'
+
 
 #Check for multiple sessions
 def check_session(ctx):
@@ -80,21 +81,25 @@ async def continue_queue(ctx):
     :return: None
     """
     session = check_session(ctx)
-    if not session.q.theres_next():
-        await ctx.send("The queue is over brother.")
-        return
+    if session.q.queue:
+        deleted_count = await session.q.dequeue_last_song()
+        #if the deletion failed
+        if deleted_count is None:
+            await ctx.send("Error removing last song from queue")
+            return
+        else:
+            await session.q.get_queue()
+            if session.q.queue:
+                session.q.current_queue_item = session.q.queue[0]
+                voice = discord.utils.get(qBot.voice_clients, guild=session.guild)
+                source = await discord.FFmpegOpusAudio.from_probe(session.q.current_queue_item.url, **FFMPEG_OPTIONS)
+                if voice.is_playing():
+                    voice.stop()
 
-    session.q.next()
-
-    voice = discord.utils.get(qBot.voice_clients, guild=session.guild)
-    source = await discord.FFmpegOpusAudio.from_probe(session.q.current_music.url, **FFMPEG_OPTIONS)
-
-    if voice.is_playing():
-        voice.stop()
-
-    voice.play(source, after=lambda e: prepare_continue_queue(ctx))
-    await ctx.send(session.q.current_music.thumb)
-    await ctx.send(f"Now Playing: {session.q.current_music.title}")
+                await ctx.send(session.q.current_queue_item.thumb)
+                await ctx.send(f"Now Playing: {session.q.current_queue_item.title}")
+                voice.play(source, after=lambda e: prepare_continue_queue(ctx))
+                
 
 
 #Play a song
@@ -125,36 +130,35 @@ async def play(ctx, *, arg):
             requests.get(arg)
         except Exception as e:
             #if they didn't type an actual url
-            if e[0:10] == "Invalid URL":
+            if e.args[0][0:11] == "Invalid URL":
                 info = ydl.extract_info(f"ytsearch:{arg}", download=False)['entries'][0]
             else:
                 await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
         else:
             info = ydl.extract_info(arg, download=False)
 
-    url = info['formats'][0]['url']
-    thumb = info['thumbnails'][0]['url']
-    title = info['title']
+    queue_item = QueueItem(info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
+    inserted_item = await session.q.enqueue(queue_item)
 
-    session.q.enqueue(title, url, thumb)
-
-    voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-    if not voice:
-        await voice_channel.connect()
-        voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-
-    if voice.is_playing():
-        await ctx.send(thumb)
-        await ctx.send(f"**Added to queue:**\n>>> {title}")
-        return
+    #if there was an error on creation
+    if inserted_item is None:
+        await ctx.send(f"**Error adding {queue_item.title} to the Queue**\n")
     else:
-        await ctx.send(thumb)
-        await ctx.send(f"**Now Playing:**\n>>> {title}")
+        voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+        if not voice:
+            await voice_channel.connect()
+            voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
 
-        session.q.set_last_as_current()
-
-        source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-        voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+        if voice.is_playing():
+            await ctx.send(inserted_item.thumb)
+            await ctx.send(f"**Added to queue:**\n>>> {inserted_item.title}")
+            return
+        else:
+            session.q.current_queue_item = inserted_item
+            await ctx.send(session.q.current_queue_item.thumb)
+            await ctx.send(f"**Now Playing:**\n>>> {session.q.current_queue_item.title}")
+            source = await discord.FFmpegOpusAudio.from_probe(session.q.current_queue_item.url, **FFMPEG_OPTIONS)
+            voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
 
 #Pause Song
 @qBot.command(name='pause')
@@ -196,20 +200,25 @@ async def skip(ctx):
     :return: None
     """
     session = check_session(ctx)
-    if not session.q.theres_next():
-        await ctx.send("The queue is empty")
+    deleted_count = await session.q.dequeue_last_song()
+    if deleted_count is None:
+        await ctx.send("Error skipping song")
         return
+    else: 
+        await session.q.get_queue()
+        if not session.q.queue:
+            await ctx.send("The queue is empty")
+            return
 
-    voice = discord.utils.get(qBot.voice_clients, guild=session.guild)
-
-    if voice.is_playing():
-        voice.stop()
-        return
-    else:
-        session.q.next()
-        source = await discord.FFmpegOpusAudio.from_probe(session.q.current_music.url, **FFMPEG_OPTIONS)
-        voice.play(source, after=lambda e: prepare_continue_queue(ctx))
-        return
+        voice = discord.utils.get(qBot.voice_clients, guild=session.guild)
+        if voice.is_playing():
+            voice.stop()
+            return
+        else:
+            session.q.current_queue_item = session.q.queue[0]
+            source = await discord.FFmpegOpusAudio.from_probe(session.q.current_queue_item.url, **FFMPEG_OPTIONS)
+            voice.play(source, after=lambda e: prepare_continue_queue(ctx))
+            return
 
 #Clear queue
 @qBot.command(name='stop')
@@ -239,10 +248,19 @@ async def leave(ctx):
     """
     voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
     if voice.is_connected:
-        check_session(ctx).q.clear_queue()
+        art = insult_service.get_copy_pasta_art()    
+        await ctx.send(art)   
         await voice.disconnect()
     else:
         await ctx.send("Bot not connected, so it can't leave.")
+
+
+#Kick Jockie out and clear queue
+@qBot.command(name='clear')
+async def leave(ctx):
+    await check_session(ctx).q.clear_queue()
+    await ctx.send("Queue has been cleared")
+
 
 #Show Current Queue
 @qBot.command(name='q')
@@ -253,23 +271,25 @@ async def print_info(ctx):
     :return: None
     """
     session = check_session(ctx)
-    if(session.q.current_music.title != ''):
-      await ctx.send(f"**Now Playing:**\n>>> {session.q.current_music.title}\n\n")
+    if(session.q.current_queue_item.title != ''):
+      await ctx.send(f"**Now Playing:**\n>>> {session.q.current_queue_item.title}\n\n")
 
+    await session.q.get_queue()
     if(len(session.q.queue) > 0): 
-      queue_string = '**Up Next:**\n>>> '
+      queue_string = '**Queue:**\n>>> '
       index = 0
       for i in session.q.queue:
-        title = i[0]
-        url = i[1]
-        thumb = i[2]
-        if(index != 0):
-          queue_string += f"{title}\n"
+        title = i.title
+        url = i.url
+        thumb = i.thumb
+        queue_string += f"{title}\n"
         index += 1
     else:
       queue_string = "**The queue is empty**"
 
     await ctx.send(queue_string)
+
+
         
 #Add song to playlist
 @qBot.command(name='atp')
@@ -333,35 +353,37 @@ async def play_playlist_item(ctx, *, arg):
                 try:
                     requests.get(song.title)
                 except Exception as e:
-                    print(e)
-                    info = ydl.extract_info(f"ytsearch:{song.title}", download=False)[
-                        'entries'][0]
-                    #await ctx.send(f"There was an error playing **{song.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+                    #if they didn't type an actual url
+                    if e.args[0][0:11] == "Invalid URL":
+                        info = ydl.extract_info(f"ytsearch:{song.title}", download=False)['entries'][0]
+                    else:
+                        await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
                 else:
                     info = ydl.extract_info(song.title, download=False)
 
-            url = info['formats'][0]['url']
-            thumb = info['thumbnails'][0]['url']
-            title = info['title']
+            new_item = QueueItem(info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
+            inserted_item = await session.q.enqueue(new_item)
 
-            session.q.enqueue(title, url, thumb)
-
-            voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-            if not voice:
-                await voice_channel.connect()
-                voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-
-            if voice.is_playing():
-                await ctx.send(thumb)
-                await ctx.send(f"**Added to queue:**\n>>> {title}")
-                return
-
+            #if there was an error on creation
+            if inserted_item is None:
+                await ctx.send(f"**Error adding {new_item.title} to the Queue**\n")
             else:
-                await ctx.send(thumb)
-                await ctx.send(f"**Now Playing:**\n>>> {title}")
-                session.q.set_last_as_current()
-                source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-                voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+                voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+                if not voice:
+                    await voice_channel.connect()
+                    voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+
+                if voice.is_playing():
+                    await ctx.send(inserted_item.thumb)
+                    await ctx.send(f"**Added to queue:**\n>>> {inserted_item.title}")
+                    return
+
+                else:
+                    session.q.set_last_as_current()
+                    await ctx.send(inserted_item.thumb)
+                    await ctx.send(f"**Now Playing:**\n>>> {inserted_item.title}")
+                    source = await discord.FFmpegOpusAudio.from_probe(inserted_item.url, **FFMPEG_OPTIONS)
+                    voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
         else:
             await ctx.send("Are you fucking retarded?")
     else:
@@ -390,49 +412,52 @@ async def delete_playlist_item(ctx, *, arg):
 # #Shuffle Playlist
 @qBot.command(name='shuffle')
 async def shuffle_playlist(ctx):
-  session = check_session(ctx)
-  try:
-    voice_channel = ctx.author.voice.channel
+    session = check_session(ctx)
+    try:
+        voice_channel = ctx.author.voice.channel
 
-  except AttributeError as e:
-    print(e)
-    await ctx.send("You're not in a voice channel you fucking idiot")
-    return
-  
-  playlist_items = playlist_service.get_all_songs()
-  shuffled_items = random.sample(playlist_items, k=len(playlist_items))
-  for i in shuffled_items:
-    with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
-        try:
-            requests.get(i.title)
-        except Exception as e:
-            print(e)
-            info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
-                'entries'][0]
-            #await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
-        else:
-            info = ydl.extract_info(arg, download=False)
+    except AttributeError as e:
+        print(e)
+        await ctx.send("You're not in a voice channel you fucking idiot")
+        return
+    
+    playlist_items = playlist_service.get_all_songs()
+    shuffled_items = random.sample(playlist_items, k=len(playlist_items))
+    for i in shuffled_items:
+        with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+            try:
+                requests.get(i.title)
+            except Exception as e:
+                #if they didn't type an actual url
+                if e.args[0][0:11] == "Invalid URL":
+                    info = ydl.extract_info(f"ytsearch:{i.title}", download=False)['entries'][0]
+                else:
+                    await ctx.send(f"There was an error playing **{i.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+            else:
+                info = ydl.extract_info(i.title, download=False)
 
-    url = info['formats'][0]['url']
-    thumb = info['thumbnails'][0]['url']
-    title = info['title']
-    session.q.enqueue(title, url, thumb)
+            url = info['formats'][0]['url']
+            thumb = info['thumbnails'][0]['url']
+            title = info['title']
+            new_item = QueueItem(title, url, thumb)
+            inserted_item = await session.q.enqueue(new_item)
 
-  voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
-  if not voice:
-    await voice_channel.connect()
+
     voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
+    if not voice:
+        await voice_channel.connect()
+        voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
 
-  if voice.is_playing():
-    await ctx.send(thumb)
-    await ctx.send(f"Added {title} to the queue")
-    return
-  else:
-    await ctx.send(thumb)
-    await ctx.send(f"Now Playing - {title}")
-    session.q.set_last_as_current()
-    source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
-    voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
+    if voice.is_playing():
+        await ctx.send(thumb)
+        await ctx.send(f"Added {title} to the queue")
+        return
+    else:
+        await ctx.send(thumb)
+        await ctx.send(f"Now Playing - {title}")
+        session.q.set_last_as_current()
+        source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
+        voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
   
 
 @qBot.command(name='fuck')
@@ -473,6 +498,16 @@ async def show_help(ctx):
                  "**$dpl 2** - Delete playlist item number 2\n" +
                  "**$shuffle** - Shuffle and play the playlist\n"
                 )
+
+                
+  await ctx.send("\n__Useless Bullshit__\n>>> " +
+                 "**$fuck you @Name** - Insult someone\n" +
+                 "**$art** - Have Jockie paint you a picture\n" + 
+                 "**$art** - Have Jockie paint you a picture\n"
+
+                )
+
+
 
 
 

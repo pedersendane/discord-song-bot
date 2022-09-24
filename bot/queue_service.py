@@ -4,9 +4,8 @@ import os
 import json
 from unicodedata import name
 import requests
-from models.playlist import PlaylistItemEncoder
-from models.playlist import Playlist, PlaylistItem
-from models.queue import Queue,QueueItem, QueueItemEncoder
+from models.playlist import PlaylistItem, Playlist
+from models.queue_item import QueueItem, QueueItemEncoder
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,7 +25,7 @@ queue_item_collection = os.environ['QUEUE_ITEM_COLLECTION']
 
 
 # Get all items
-def get_all_queue_items():
+async def get_all_queue_items():
     queue = []
     url = f"{base_api_url}/action/find"
     headers = {
@@ -52,7 +51,7 @@ def get_all_queue_items():
     return queue
 
 #Get single song
-def get_queue_item_by_id(id):
+async def get_queue_item_by_id(id):
     url = f"{base_api_url}/action/findOne"
     headers = {
         'Content-Type': 'application/json',
@@ -81,7 +80,7 @@ def get_queue_item_by_id(id):
 
             
 #Get single song
-def get_queue_item_by_name(name):
+async def get_queue_item_by_name(name):
     url = f"{base_api_url}/action/findOne"
     headers = {
         'Content-Type': 'application/json',
@@ -109,37 +108,35 @@ def get_queue_item_by_name(name):
             return None
     
 #Insert Song Into Queue
-def create_queue_item(queue_item):
-    new_queue_item = QueueItem(queue_item.title, queue_item.url, queue_item.thumb)
-    new_queue_item.date_added = datetime.now()
-    new_queue_item.date_updated = datetime.now()
+async def create_queue_item(queue_item):
+    queue_item.date_added = datetime.now()
+    queue_item.date_updated = datetime.now()
     
-    existing_song = get_queue_item_by_name(new_queue_item.title)
-    if existing_song is not None:
-        return f"**{new_queue_item.title} is already in the playlist**"
-    else:
-        url = f"{base_api_url}/action/insertOne"
-        headers = {
-            'Content-Type': 'application/json',
-            'api-key': queue_item_api_key, 
-        }
-        payload = json.dumps({
-            "collection": queue_item_collection,
-            "database": database,
-            "dataSource": data_source,
-            "document": new_queue_item.to_json()
-        })
-        response = requests.request("POST", url, headers=headers, data=payload )
-        try:
-            doc = json.loads(response.text)
-            insertedId = doc['insertedId']
-            print(insertedId)
-            return f"**Added to queue:**\n>>> {new_queue_item.title}"
-        except:
-            return f"**There was an error adding {new_queue_item.title} to the queue**"
+    # existing_song = await get_queue_item_by_name(queue_item.title)
+    # #if the song exists
+    # if existing_song is not None:
+    #     return None
+    # else:
+    url = f"{base_api_url}/action/insertOne"
+    headers = {
+        'Content-Type': 'application/json',
+        'api-key': queue_item_api_key, 
+    }
+    payload = json.dumps({
+        "collection": queue_item_collection,
+        "database": database,
+        "dataSource": data_source,
+        "document": queue_item.to_json()
+    })
+    response = requests.request("POST", url, headers=headers, data=payload )
+    try:
+        doc = json.loads(response.text)
+        return doc['insertedId']
+    except:
+        return None
 
 #Delete Song
-def delete_queue_item(queue_item):
+async def delete_queue_item(queue_item):
     url = f"{base_api_url}/action/deleteOne"
     headers = {
         'Content-Type': 'application/json',
@@ -155,7 +152,6 @@ def delete_queue_item(queue_item):
     try:
         doc = json.loads(response.text)
         deletedCount = doc['deletedCount']
-        print(deletedCount)
-        return f"**{queue_item.title} has been removed from the queue**"
+        return deletedCount
     except:
-        return f"**There was an error deleting {queue_item.title} from the playlist**"
+        return None

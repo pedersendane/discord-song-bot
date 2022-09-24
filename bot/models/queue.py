@@ -11,6 +11,8 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 from typing import List, Optional, Union
 from datetime import datetime
+from models.queue_item import QueueItem
+import playlist_service, insult_service, queue_service
 
 from .objectid import PydanticObjectId
 
@@ -64,13 +66,14 @@ class Queue:
 
     """
     def __init__(self):
-        self.music = namedtuple('music', ('title', 'url', 'thumb'))
-        self.current_music = self.music('', '', '')
+        # self.music = namedtuple('music', ('title', 'url', 'thumb'))
+        # self.current_music = self.music('', '', '')
 
-        self.last_title_enqueued = ''
+        # self.last_title_enqueued = ''
         self.queue = []
+        self.current_queue_item = QueueItem('','','')
 
-    def set_last_as_current(self):
+    def set_current_queue_item(self):
         """
         Sets last music as current.
 
@@ -78,9 +81,9 @@ class Queue:
         """
         index = len(self.queue) - 1
         if index >= 0:
-            self.current_music = self.queue[index]
+            self.current_queue_item = self.queue[index]
 
-    def enqueue(self, music_title, music_url, music_thumb):
+    async def enqueue(self, queue_item):
         """
         Handles enqueue process appending the music tuple to the queue
         while setting last_title_enqueued and the current_music variables as needed
@@ -93,16 +96,22 @@ class Queue:
             The music thumbnail url to be added to queue
         :return: None
         """
-        if len(self.queue) > 0:
-            self.queue.append(self.music(music_title, music_url, music_thumb))
+        inserted_id = await queue_service.create_queue_item(queue_item)
+        if inserted_id is not None:
+            queue_item.id = inserted_id
+            await self.get_queue()
+            if len(self.queue) == 0:
+                self.current_queue_item = queue_item
+            return queue_item
         else:
-            self.queue.append(self.music(music_title, music_url, music_thumb))
-            self.current_music = self.music(music_title, music_url, music_thumb)
-
-    def dequeue(self):
-        pass
-        # if self.queue:
-        #     self.queue.pop(len(self.queue)-1)
+            return None
+        
+    async def dequeue_last_song(self):
+        deleted_count = None
+        if self.queue:
+            deleted_count = await queue_service.delete_queue_item(self.current_queue_item)
+        return deleted_count
+        
 
     def previous(self):
         """
@@ -115,22 +124,20 @@ class Queue:
         if index > 0:
             self.current_music = self.queue[index]
 
-    def next(self):
-        """
-        Sets the next music in the queue as the current one.
+    async def get_queue(self):
+        self.queue = await queue_service.get_all_queue_items()
 
-        :return: None
-        """
-        if self.current_music in self.queue:
-            index = self.queue.index(self.current_music) + 1
-            if len(self.queue) - 1 >= index:
-                if self.current_music.title == self.queue[index].title and len(self.queue) - 1 > index + 1:
-                    self.current_music = self.queue[index + 1]
-                else:
-                    self.current_music = self.queue[index]
+    # def next(self):
+    #     """
+    #     Sets the next music in the queue as the current one.
 
-        else:
-            self.clear_queue()
+    #     :return: None
+    #     """
+    #     if self.queue:
+
+
+    #     else:
+    #         self.clear_queue()
 
     def theres_next(self):
         """
@@ -145,14 +152,18 @@ class Queue:
         else:
             return True
 
-    def clear_queue(self):
+    async def clear_queue(self):
         """
         Clears the queue, resetting all variables.
 
         :return: None
         """
-        self.queue.clear()
-        self.current_music = self.music('', '', '')
+        await self.get_queue()
+        if self.queue:
+            for i in self.queue:
+                await queue_service.delete_queue_item(i)
+            self.queue.clear()
+            self.current_queue_item = QueueItem('','','')
 
 class Session:
     """
@@ -186,24 +197,3 @@ class Session:
         self.guild = guild
         self.channel = channel
         self.q = Queue()
-
-class QueueItem:
-    id: Optional[PydanticObjectId] = Field(None, alias="_id")
-    title: str
-    url: str
-    thumb: str
-    date_added: Optional[datetime]
-    date_updated: Optional[datetime]
-
-    def __init__(self, title, url, thumb):
-        self.title = title
-        self.url = url
-        self.thumb = thumb
-        self.date_added = date_added
-
-    def to_json(self):
-        return jsonable_encoder(self, exclude_none=True)  
-
-class QueueItemEncoder(json.JSONEncoder):
-    def default(self, o):
-        return o.__dict__
