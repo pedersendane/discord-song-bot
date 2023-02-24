@@ -388,6 +388,7 @@ async def play_playlist_item(ctx, *, arg):
                     return
 
                 else:
+                    session.q.set_current_queue_item()
                     await ctx.send(inserted_item.thumb)
                     await ctx.send(f"**Now Playing:**\n>>> {inserted_item.title}")
                     source = await discord.FFmpegOpusAudio.from_probe(inserted_item.url, **FFMPEG_OPTIONS)
@@ -456,6 +457,7 @@ async def shuffle_playlist(ctx):
         await ctx.send(f"Added {title} to the queue")
         return
     else:
+        session.q.set_current_queue_item()
         await ctx.send(thumbnail)
         await ctx.send(f"Now Playing - {title}")
         source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
