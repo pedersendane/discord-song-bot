@@ -10,6 +10,7 @@ import json
 import random
 import time
 import ffmpeg
+import html
 from discord.ext import commands
 from discord import FFmpegOpusAudio
 from dotenv import load_dotenv
@@ -130,14 +131,18 @@ async def play(ctx, *, arg):
             requests.get(arg)
         except Exception as e:
             #if they didn't type an actual url
-            if e.args[0][0:11] == "Invalid URL":
-                info = ydl.extract_info(f"ytsearch:{arg}", download=False)['entries'][0]
-            else:
-                await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
+            search_term = html.escape(arg)
+            info = ydl.extract_info(f"ytsearch:{search_term}", download=False)
         else:
             info = ydl.extract_info(arg, download=False)
 
-    queue_item = QueueItem(info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
+    sanitized = ydl.sanitize_info(info)
+    entries = sanitized['entries'][0]
+    id = entries['id']
+    title = entries['title']
+    thumbnail = entries['thumbnail']
+    url = entries['url']
+    queue_item = QueueItem(title, url, thumbnail)
     inserted_item = await session.q.enqueue(queue_item)
 
     #if there was an error on creation
@@ -300,17 +305,23 @@ async def add_song_to_playlist(ctx, *, arg):
         try:
             requests.get(arg)
         except Exception as e:
-            print(e)
-            info = ydl.extract_info(f"ytsearch:{arg}", download=False)[
-                'entries'][0]
-            #await ctx.send(f"Searching YouTube for '{arg}'")
+            #if they didn't type an actual url
+            search_term = html.escape(arg)
+            info = ydl.extract_info(f"ytsearch:{search_term}", download=False)
         else:
             info = ydl.extract_info(arg, download=False)
+
+    sanitized = ydl.sanitize_info(info)
+    entries = sanitized['entries'][0]
+    id = entries['id']
+    title = entries['title']
+    thumbnail = entries['thumbnail']
+    url = entries['url']
 
     playlist = playlist_service.get_playlist_by_name(shared_playlist_name)
     if playlist is not None:
         # song = PlaylistItem(playlist.id, info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
-        song = PlaylistItem(playlist.id, info['title'], info['title'], info['thumbnails'][0]['url'])
+        song = PlaylistItem(playlist.id, title, url, thumbnail)
         message = playlist_service.create_song(song)
         await ctx.send(message)
 
@@ -350,19 +361,17 @@ async def play_playlist_item(ctx, *, arg):
         if(index >= 0 and index <= len(playlist_items)):
             song = playlist_items[index]
             with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
-                try:
-                    requests.get(song.title)
-                except Exception as e:
-                    #if they didn't type an actual url
-                    if e.args[0][0:11] == "Invalid URL":
-                        info = ydl.extract_info(f"ytsearch:{song.title}", download=False)['entries'][0]
-                    else:
-                        await ctx.send(f"There was an error playing **{arg}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
-                else:
-                    info = ydl.extract_info(song.title, download=False)
+                search_term = html.escape(song.title)
+                info = ydl.extract_info(f"ytsearch:{search_term}", download=False)
+                sanitized = ydl.sanitize_info(info)
+                entries = sanitized['entries'][0]
+                id = entries['id']
+                title = entries['title']
+                thumbnail = entries['thumbnail']
+                url = entries['url']
 
-            new_item = QueueItem(info['title'], info['formats'][0]['url'], info['thumbnails'][0]['url'])
-            inserted_item = await session.q.enqueue(new_item)
+                new_item = QueueItem(title, url, thumbnail)
+                inserted_item = await session.q.enqueue(new_item)
 
             #if there was an error on creation
             if inserted_item is None:
@@ -425,21 +434,15 @@ async def shuffle_playlist(ctx):
     shuffled_items = random.sample(playlist_items, k=len(playlist_items))
     for i in shuffled_items:
         with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
-            try:
-                requests.get(i.title)
-            except Exception as e:
-                #if they didn't type an actual url
-                if e.args[0][0:11] == "Invalid URL":
-                    info = ydl.extract_info(f"ytsearch:{i.title}", download=False)['entries'][0]
-                else:
-                    await ctx.send(f"There was an error playing **{i.title}**.\nTry adding **lyrics** to the end, or kick me out and try again.")
-            else:
-                info = ydl.extract_info(i.title, download=False)
-
-            url = info['formats'][0]['url']
-            thumb = info['thumbnails'][0]['url']
-            title = info['title']
-            new_item = QueueItem(title, url, thumb)
+            search_term = html.escape(song.title)
+            info = ydl.extract_info(f"ytsearch:{search_term}", download=False)
+            sanitized = ydl.sanitize_info(info)
+            entries = sanitized['entries'][0]
+            id = entries['id']
+            title = entries['title']
+            thumbnail = entries['thumbnail']
+            url = entries['url']
+            new_item = QueueItem(title, url, thumbnail)
             inserted_item = await session.q.enqueue(new_item)
 
 
