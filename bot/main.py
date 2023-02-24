@@ -5,7 +5,7 @@ import os
 import string
 import discord
 import requests
-import youtube_dl
+import yt_dlp 
 import json
 import random
 import time
@@ -125,7 +125,7 @@ async def play(ctx, *, arg):
 
     session = check_session(ctx)
 
-    with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+    with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
         try:
             requests.get(arg)
         except Exception as e:
@@ -296,7 +296,7 @@ async def print_info(ctx):
 async def add_song_to_playlist(ctx, *, arg):
     session = check_session(ctx)
     # Searches for the video
-    with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+    with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
         try:
             requests.get(arg)
         except Exception as e:
@@ -349,7 +349,7 @@ async def play_playlist_item(ctx, *, arg):
     if(len(playlist_items) > 0):
         if(index >= 0 and index <= len(playlist_items)):
             song = playlist_items[index]
-            with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+            with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
                 try:
                     requests.get(song.title)
                 except Exception as e:
@@ -424,7 +424,7 @@ async def shuffle_playlist(ctx):
     playlist_items = playlist_service.get_all_songs()
     shuffled_items = random.sample(playlist_items, k=len(playlist_items))
     for i in shuffled_items:
-        with youtube_dl.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
             try:
                 requests.get(i.title)
             except Exception as e:
