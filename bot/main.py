@@ -280,14 +280,15 @@ async def print_info(ctx):
       await ctx.send(f"**Now Playing:**\n>>> {session.q.current_queue_item.title}\n\n")
 
     await session.q.get_queue()
-    if(len(session.q.queue) > 0): 
+    if(len(session.q.queue) > 1): 
       queue_string = '**Queue:**\n>>> '
       index = 0
       for i in session.q.queue:
-        title = i.title
-        url = i.url
-        thumb = i.thumb
-        queue_string += f"{title}\n"
+        if index != 0:
+            title = i.title
+            url = i.url
+            thumb = i.thumb
+            queue_string += f"{title}\n"
         index += 1
     else:
       queue_string = "**The queue is empty**"
