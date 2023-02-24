@@ -388,7 +388,6 @@ async def play_playlist_item(ctx, *, arg):
                     return
 
                 else:
-                    session.q.set_last_as_current()
                     await ctx.send(inserted_item.thumb)
                     await ctx.send(f"**Now Playing:**\n>>> {inserted_item.title}")
                     source = await discord.FFmpegOpusAudio.from_probe(inserted_item.url, **FFMPEG_OPTIONS)
@@ -434,6 +433,7 @@ async def shuffle_playlist(ctx):
     shuffled_items = random.sample(playlist_items, k=len(playlist_items))
     for i in shuffled_items:
         with yt_dlp.YoutubeDL({'format': 'bestaudio', 'noplaylist': 'True'}) as ydl:
+            song = i
             search_term = html.escape(song.title)
             info = ydl.extract_info(f"ytsearch:{search_term}", download=False)
             sanitized = ydl.sanitize_info(info)
@@ -452,13 +452,12 @@ async def shuffle_playlist(ctx):
         voice = discord.utils.get(qBot.voice_clients, guild=ctx.guild)
 
     if voice.is_playing():
-        await ctx.send(thumb)
+        await ctx.send(thumbnail)
         await ctx.send(f"Added {title} to the queue")
         return
     else:
-        await ctx.send(thumb)
+        await ctx.send(thumbnail)
         await ctx.send(f"Now Playing - {title}")
-        session.q.set_last_as_current()
         source = await discord.FFmpegOpusAudio.from_probe(url,**FFMPEG_OPTIONS)
         voice.play(source, after=lambda ee: prepare_continue_queue(ctx))
   
